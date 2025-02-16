@@ -10,6 +10,7 @@ A Streamlit-based web application for organizing and participating in stock trad
 - Automatic trade detail extraction using GPT-4V
 - Real-time leaderboard
 - Manual trade entry fallback
+- Automated winner payouts via Payman
 
 ## Setup
 
@@ -22,7 +23,10 @@ pip install -r requirements.txt
 Create a `.env` file with:
 ```
 OPENAI_API_KEY=your_api_key_here
+PAYMAN_API_KEY=your_payman_api_key  # Get from app.paymanai.com
 ```
+
+Note: To enable contest payouts, sign up for an API key at [Payman](https://paymanai.com).
 
 3. Run the application:
 ```bash
