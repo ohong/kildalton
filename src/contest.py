@@ -314,11 +314,9 @@ class ContestManager:
             print("Sending payment...")
             # Send payment
             payment = payman.payments.send_payment(
-                amount_decimal=1000.00,
-                payment_destination=winner_agent_payee.id,
-                memo='Contest winnings payment',
-                customer_email='marc@a16z.com',
-                customer_name='Marc A'
+                amount_decimal=50.00,
+                payment_destination_id=winner_agent_payee.id,
+                memo='Contest winnings payment'
             )
             
             print('Payment sent:', payment.reference)
