@@ -6,3 +6,4 @@ sqlalchemy>=2.0.0
 pillow>=10.0.0
 python-slugify>=8.0.1
 pytest>=7.4.0
+paymanai==1.0.0

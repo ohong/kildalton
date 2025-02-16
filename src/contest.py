@@ -290,25 +290,42 @@ class ContestManager:
 
     def end_contest(self, contest_id: int, winner_id: int) -> bool:
         """End a contest and set the winner."""
+        # Removed since contests should persist after payout
+        return True
+        
+    def payout_winner(self, contest_id: int, winner_id: int) -> bool:
+        """Process payout to contest winner using Payman."""
         try:
-            contest = self.db.query(Contest).filter_by(id=contest_id).first()
-            if not contest or contest.status != ContestStatus.ACTIVE:
-                return False
+            print(f"Starting payout process for contest {contest_id}, winner {winner_id}")
+            from app import payman
             
-            winner = self.db.query(Player).filter_by(id=winner_id).first()
-            if not winner or winner.contest_id != contest_id:
-                return False
-                
-            contest.status = ContestStatus.COMPLETED
-            self.db.commit()
+            print("Creating agent payee...")
+            # Create agent payee
+            winner_agent_payee = payman.payments.create_payee(
+                type='PAYMAN_AGENT',
+                payman_agent='agt-1efec0ba-aca9-66db-9c15-ed3e511002ed',
+                name='Contest Winner',
+                contact_details={
+                    'email': 'marc@a16z.com'
+                }
+            )
+            print(f"Agent payee created: {winner_agent_payee}")
+            
+            print("Sending payment...")
+            # Send payment
+            payment = payman.payments.send_payment(
+                amount_decimal=1000.00,
+                payment_destination=winner_agent_payee.id,
+                memo='Contest winnings payment',
+                customer_email='marc@a16z.com',
+                customer_name='Marc A'
+            )
+            
+            print('Payment sent:', payment.reference)
             return True
             
         except Exception as e:
-            print(f"Error ending contest: {str(e)}")
-            self.db.rollback()
+            print(f"Payman error: {str(e)}")
+            import traceback
+            print(traceback.format_exc())
             return False
-            
-    def payout_winner(self, contest_id: int, winner_id: int) -> bool:
-        """Stub for Payman integration - will handle payouts in the future."""
-        print(f"TODO: Integrate with Payman to pay out winner {winner_id} for contest {contest_id}")
-        return True

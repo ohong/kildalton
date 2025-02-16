@@ -1,10 +1,21 @@
 import os
+from dotenv import load_dotenv
 import streamlit as st
 from datetime import datetime
 import pandas as pd
 from database import init_db, ContestStatus
 from contest import ContestManager
 from ocr import TradeParser
+from paymanai import Paymanai
+
+# Load environment variables
+load_dotenv()
+
+# Initialize Payman SDK
+payman = Paymanai(
+    x_payman_api_secret=os.getenv('PAYMAN_API_KEY'),
+    environment='sandbox'
+)
 
 # Initialize session state
 if 'db' not in st.session_state:
@@ -226,6 +237,7 @@ def view_leaderboard_page():
                 data,
                 column_config={
                     "Rank": st.column_config.NumberColumn(format="%d"),
+                    "Player": st.column_config.TextColumn(),
                     "Portfolio Value": st.column_config.TextColumn(),
                     "Cash Balance": st.column_config.TextColumn(),
                     "Total Profit/Loss": st.column_config.TextColumn(),
@@ -234,10 +246,18 @@ def view_leaderboard_page():
                 hide_index=True
             )
             
-            # End Contest Section
-            st.subheader("End Contest")
-            if st.button("🏆 End Contest"):
-                st.info("Please review the contest details before selecting a winner:")
+            # Payout Section
+            st.subheader("Contest Payout")
+            
+            # Use session state to track if payout was clicked
+            if 'payout_clicked' not in st.session_state:
+                st.session_state.payout_clicked = False
+                
+            if st.button("💰 Process Payout"):
+                st.session_state.payout_clicked = True
+                
+            if st.session_state.payout_clicked:
+                st.info("Please review the contest details before selecting a winner for payout:")
                 
                 # Show win condition again
                 st.markdown(f"""
@@ -267,15 +287,24 @@ def view_leaderboard_page():
                 )
                 
                 if winner:
-                    if st.button("💰 Payout with Payman"):
-                        if st.session_state.contest_manager.end_contest(selected_contest.id, winner.id):
-                            if st.session_state.contest_manager.payout_winner(selected_contest.id, winner.id):
-                                st.success(f"🎉 Contest ended! Winner {winner.name} has been paid!")
+                    payout_col1, payout_col2 = st.columns([1, 3])
+                    with payout_col1:
+                        if st.button("💰 Send Payment"):
+                            print(f"\nProcessing payout for contest {selected_contest.id}")
+                            print(f"Selected winner: {winner.name} (ID: {winner.id})")
+                            
+                            print("Processing payment...")
+                            payment_success = st.session_state.contest_manager.payout_winner(selected_contest.id, winner.id)
+                            print(f"Payment result: {'Success' if payment_success else 'Failed'}")
+                            
+                            if payment_success:
+                                st.session_state.payout_clicked = False  # Reset the state
+                                st.success(f"🎉 Payment sent to {winner.name}!")
                                 st.balloons()
                             else:
-                                st.error("Contest ended but payment failed. Please try payment again.")
-                        else:
-                            st.error("Failed to end contest. Please try again.")
+                                st.error("Payment failed. Please try again.")
+                    with payout_col2:
+                        st.button("❌ Cancel", on_click=lambda: setattr(st.session_state, 'payout_clicked', False))
             
             # Show trade history
             st.subheader("Trade History")
