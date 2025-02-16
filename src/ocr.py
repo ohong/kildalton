@@ -1,4 +1,5 @@
 import os
+import json
 import base64
 from openai import OpenAI
 from datetime import datetime
@@ -10,7 +11,7 @@ class TradeParser:
 
     def parse_screenshot(self, image_bytes: bytes) -> Dict[str, Any]:
         """
-        Extract trade information from a Robinhood screenshot using GPT-4V.
+        Extract trade information from a Robinhood screenshot using OpenAI's gpt-4o-mini.
         Returns a dictionary with trade details or error message.
         """
         try:
@@ -25,15 +26,15 @@ class TradeParser:
                     "content": [
                         {
                             "type": "text",
-                            "text": """Extract these trade details from the Robinhood screenshot and return them in JSON format:
-                            {
-                                "trade_type": "buy" or "sell",
-                                "ticker": "stock symbol",
-                                "quantity": number of shares,
-                                "price": price per share,
-                                "date": "trade date"
-                            }
-                            If any field is not visible, leave it as null."""
+                            "text": """You are a JSON extractor. Your task is to extract trade details from a Robinhood screenshot and output ONLY a JSON object with this structure:
+{
+    "trade_type": "buy" or "sell",
+    "ticker": "stock symbol",
+    "quantity": number,
+    "price": number,
+    "date": "YYYY-MM-DD"
+}
+Use null for any missing values. Output ONLY the JSON object, no other text or explanation."""
                         },
                         {
                             "type": "image_url",
@@ -46,19 +47,31 @@ class TradeParser:
                 max_tokens=300
             )
             
-            # Get the response text
-            result = response.choices[0].message.content
+            # Get the response text and parse JSON
+            raw_result = response.choices[0].message.content.strip()
+            print(f"Raw GPT response: {raw_result}")  # Debug output
             
-            # TODO: Parse the JSON response
-            # For now, return a basic structure
-            return {
-                "success": True,
-                "trade_type": None,  # Will be filled by GPT-4V
-                "ticker": None,      # Will be filled by GPT-4V
-                "quantity": None,    # Will be filled by GPT-4V
-                "price": None,       # Will be filled by GPT-4V
-                "date": None        # Will be filled by GPT-4V
-            }
+            try:
+                # Try to clean the response if it contains markdown code blocks
+                if "```json" in raw_result:
+                    raw_result = raw_result.split("```json")[1].split("```")[0].strip()
+                elif "```" in raw_result:
+                    raw_result = raw_result.split("```")[1].strip()
+                
+                parsed_data = json.loads(raw_result)
+                return {
+                    "success": True,
+                    "trade_type": parsed_data.get("trade_type"),
+                    "ticker": parsed_data.get("ticker"),
+                    "quantity": parsed_data.get("quantity"),
+                    "price": parsed_data.get("price"),
+                    "date": parsed_data.get("date")
+                }
+            except json.JSONDecodeError as e:
+                return {
+                    "success": False,
+                    "error": f"Failed to parse GPT response as JSON. Raw response: {raw_result}"
+                }
             
         except Exception as e:
             return {

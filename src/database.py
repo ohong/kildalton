@@ -17,7 +17,8 @@ class Contest(Base):
     id = Column(Integer, primary_key=True)
     name = Column(String, nullable=False)
     join_code = Column(String, unique=True, nullable=False)
-    target_profit = Column(Float, nullable=False)
+    win_condition = Column(String, nullable=False)
+    starting_balance = Column(Float, nullable=False, default=10000.0)  # Default $10k starting balance
     status = Column(Enum(ContestStatus), default=ContestStatus.ACTIVE)
     created_at = Column(DateTime, default=datetime.utcnow)
     players = relationship("Player", back_populates="contest")
@@ -28,11 +29,24 @@ class Player(Base):
     id = Column(Integer, primary_key=True)
     name = Column(String, nullable=False)
     contest_id = Column(Integer, ForeignKey('contests.id'))
-    current_balance = Column(Float, default=0.0)
-    unrealized_profit = Column(Float, default=0.0)
+    starting_balance = Column(Float, nullable=False)  # Set when joining contest
+    cash_balance = Column(Float, nullable=False)     # Available cash
     created_at = Column(DateTime, default=datetime.utcnow)
     contest = relationship("Contest", back_populates="players")
     trades = relationship("Trade", back_populates="player")
+    positions = relationship("Position", back_populates="player")
+
+class Position(Base):
+    __tablename__ = 'positions'
+    
+    id = Column(Integer, primary_key=True)
+    player_id = Column(Integer, ForeignKey('players.id'))
+    ticker = Column(String, nullable=False)
+    quantity = Column(Float, nullable=False)
+    average_price = Column(Float, nullable=False)
+    current_price = Column(Float, nullable=False)  # Updated when viewing leaderboard
+    last_updated = Column(DateTime, default=datetime.utcnow)
+    player = relationship("Player", back_populates="positions")
 
 class Trade(Base):
     __tablename__ = 'trades'
@@ -42,8 +56,8 @@ class Trade(Base):
     ticker = Column(String, nullable=False)
     quantity = Column(Float, nullable=False)
     price = Column(Float, nullable=False)
-    type = Column(String, nullable=False)  # 'buy' or 'sell'
-    screenshot_path = Column(String, nullable=True)
+    type = Column(String, nullable=False)  # 'BUY' or 'SELL'
+    total_amount = Column(Float, nullable=False)  # quantity * price
     trade_date = Column(DateTime, nullable=False)
     created_at = Column(DateTime, default=datetime.utcnow)
     player = relationship("Player", back_populates="trades")
